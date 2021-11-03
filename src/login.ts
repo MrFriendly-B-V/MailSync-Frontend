@@ -27,7 +27,7 @@ export async function logIn(): Promise<IUser> {
 	let sessionId = getCookie('sessionid')
 
 	if(sessionId == '') {
-		let path = window.location.origin + window.location.pathname + '#/login'
+		let path = window.location.origin + '/' + window.location.pathname + '#/login'
 		window.location.href = `${LOGIN_SERVER}/oauth2/login?api_name=mailsync&return_uri=${btoa(path)}`
 	}
 
