@@ -43,7 +43,7 @@ export default Vue.extend({
         let sessionId = this.$route.query.session_id
         if(sessionId != null) {
             setCookie('sessionid', sessionId as string, 60*60*24*30)
-            window.location.href = '/'
+            window.location.href = '/static/index.html'
             return
         }
     },
