@@ -24,6 +24,7 @@
                 :server-items-length="totalMails"
                 :sort-by.sync="sortBy"
                 :sort-desc.sync="sortDesc"
+                :footer-props="footerProps"
                 @click:row="handleClick"></v-data-table>
         </v-card>
 
@@ -62,6 +63,7 @@ interface ComponentData {
     errorText:  string
     sortDesc:   boolean,
     sortBy:     string
+    footerProps: any
 }
 
 interface Mail {
@@ -105,7 +107,15 @@ export default Vue.extend({
                     text: 'Bcc',
                     value: 'bcc'
                 }
-            ]
+            ],
+            footerProps: {
+                'items-per-page-options': [
+                    25,
+                    50,
+                    100,
+                    -1
+                ]
+            }
         }
     },
     watch: {

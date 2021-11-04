@@ -1,5 +1,6 @@
 <template>
     <div>
+        <!-- Little snackbar at the bottom -->
         <v-snackbar v-model="snackbar">
             {{snackbarText}}
             <template v-slot:action="{ attrs }">
@@ -13,68 +14,103 @@
             </template>
         </v-snackbar>
 
+        <!-- Content -->
         <v-container>
             <v-card
                 v-if="isAdmin"
                 class="mx-auto mt-6"
                 elevation="2">
             
-                <v-card-title class="headline">
-                        <v-btn 
-                            fab
-                            small
-                            class="mr-3"
-                            @click="previousRoute()">
-                            <v-icon>mdi-arrow-left</v-icon>
-                        </v-btn>
-                        Administrative settings
-                    </v-card-title>
+                <v-card-title class="headline">MailSync Settings</v-card-title>
                 <v-container>
-                    <v-form
-                        v-model="formValid"
-                        ref="form">
-                        <v-simple-table
-                            dense>
-                            <tr class="text-left">
-                                <th> Property </th>
-                                <th> Value </th>
-                            </tr>
-                            <tr v-for="setting in settings" :key="setting.name">
-                                <td>
-                                    <div> {{ setting.name }} </div>
-                                </td>
-                                <td>
-                                <v-text-field
-                                    v-model="setting.value"
-                                    :label="setting.name"
-                                    :rules="rules[setting.rule_type]"
-                                    required></v-text-field>
-                                </td>
-                            </tr>
-                        </v-simple-table>
+                    <!-- Administrative settings form -->
+                    <div>
+                        <div class="text-h4">Server</div>
+                        <!-- Loading overlay -->
+                        <v-overlay 
+                            :value="serverSettingsLoading"
+                            absolute
+                            z-index="10"
+                            opacity="0">
+                            <v-progress-circular
+                                indeterminate
+                                color="primary"
+                                size="64"
+                            ></v-progress-circular>
+                        </v-overlay>
+                        <v-form
+                            v-model="formValid"
+                            ref="form">
+                            <v-simple-table
+                                dense>
+                                <tr class="text-left">
+                                    <th> Property </th>
+                                    <th> Value </th>
+                                </tr>
+                                <tr v-for="setting in settings" :key="setting.name">
+                                    <td>
+                                        <div> {{ setting.name }} </div>
+                                    </td>
+                                    <td>
+                                    <v-text-field
+                                        v-model="setting.value"
+                                        :label="setting.name"
+                                        :rules="rules[setting.rule_type]"
+                                        required></v-text-field>
+                                    </td>
+                                </tr>
+                            </v-simple-table>
+                        </v-form>
+                    </div>
+                    <!-- Save/Cancel buttons -->
+                    <div class="d-flex">
+                        <v-spacer></v-spacer>
                         <v-btn 
-                            @click="saveSettings"
-                            fab
-                            small>
-                            <v-icon
-                                color="primary">
-                                mdi-content-save
-                            </v-icon>
-                        </v-btn> 
-                    </v-form>
+                            depressed
+                            color="red"
+                            class="ma-2 white--text"
+                            @click="previousRoute()">
+                            Cancel
+                        </v-btn>
+                        <v-btn
+                            depressed
+                            @click="saveServerSettings"
+                            color="primary"
+                            class="ma-2 white--text">
+                            Save
+                        </v-btn>
+                    </div>
+
+                    <!-- User settings table -->
+                    <div class="text-h4">Users</div>
+                    <v-data-table
+                        :loading="usersLoading"
+                        :items="users"
+                        :headers="usersHeaders">
+
+                        <template v-slot:[`item.active`]="{ item }">
+                            <v-checkbox
+                                v-model="item.active"
+                                :ripple="false"
+                                @change="updateUserEnabled(item)"></v-checkbox>
+                        </template>
+                    </v-data-table>
+
+                    <!-- Return button -->
+                    <div class="d-flex">
+                        <v-spacer></v-spacer>
+                        <v-btn 
+                            depressed
+                            color="red"
+                            class="ma-2 white--text"
+                            @click="previousRoute()">
+                            Cancel
+                        </v-btn>
+                    </div>
                 </v-container>
-                <v-overlay 
-                    :value="loading"
-                    absolute
-                    z-index="10"
-                    opacity="0">
-                    <v-progress-circular
-                        indeterminate
-                        color="primary"
-                        size="64"
-                    ></v-progress-circular>
-                </v-overlay>
             </v-card>
+
+            <!-- Shown when a user is not authorized --> 
             <v-card 
                 v-if="!isAdmin"
                 elevation="2"
@@ -89,9 +125,6 @@
                     </div>
                 </v-card-actions>
             </v-card>
-            <v-overlay
-                :value="loading"
-            ></v-overlay>
         </v-container>
     </div>
 </template>
@@ -100,15 +133,19 @@
 import { getCookie, getScopes } from '@/login'
 import { MAILSYNC_SERVER } from '@/main'
 import Vue from 'vue'
+import { DataTableHeader } from 'vuetify'
 
 interface ComponentData {
-    isAdmin:    boolean
-    loading:    boolean
-    snackbar:      boolean
-    snackbarText:  string
-    formValid:  boolean
-    settings:   Setting[]
-    rules:      Rules 
+    isAdmin:                boolean
+    serverSettingsLoading:  boolean
+    snackbar:               boolean
+    snackbarText:           string
+    formValid:              boolean
+    settings:               Setting[]
+    rules:                  Rules
+    usersLoading:           boolean
+    users:                  User[],
+    usersHeaders:           DataTableHeader[]
 }
 
 interface Rules {
@@ -121,11 +158,18 @@ interface Setting {
     rule_type:  string
 }
 
+interface User {
+    id:     string
+    name:   string
+    email:  string
+    active: boolean
+}
+
 export default Vue.extend({
     data(): ComponentData {
         return {
             isAdmin: false,
-            loading: true,
+            serverSettingsLoading: true,
             snackbar: false,
             snackbarText: null as any,
             formValid: false,
@@ -136,7 +180,23 @@ export default Vue.extend({
                     v => !v.endsWith('/') || 'URL must not end with a /',
                     v => (/(http:\/\/|https:\/\/).*/gm).test(v) || 'Invalid URL'
                 ]
-            } 
+            },
+            usersLoading: true,
+            users: [],
+            usersHeaders: [
+                {
+                    text: 'Name',
+                    value: 'name'
+                },
+                {
+                    text: 'Email',
+                    value: 'email'
+                },
+                {
+                    text: 'Enabled',
+                    value: 'active'
+                }
+            ]
         }
     },
     mounted: async function () {
@@ -154,7 +214,8 @@ export default Vue.extend({
                 return
             }
 
-            this.fetchSettings()
+            this.fetchServerSettings()
+            this.fetchUsers()
 		})
     },
     methods: {
@@ -164,7 +225,133 @@ export default Vue.extend({
 		returnToDashboard() {
             window.location.href='https://dashboard.intern.mrfriendly.nl'
         },
-        fetchSettings() {
+        updateUserEnabled(user: User) {
+            if(user.active) {
+                fetch(`${MAILSYNC_SERVER}/user/add?user_id=${user.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': getCookie('sessionid')
+                    }
+                })
+                .then(r => {
+                    if(!r.ok) {
+                        throw r
+                    }
+
+                    switch(r.status) {
+                        case 200:
+                            this.snackbarText = 'User added'
+                            this.snackbar = true
+                            break
+                        case 429:
+                            this.snackbarText = 'Hold up, slow down a bit!'
+                            this.snackbar = true
+                            this.usersLoading = false
+                            break
+                        case 401:
+                            this.usersLoading = false
+                            this.isAdmin = false
+                            break
+                        default:
+                            this.snackbarText = 'Something went wrong. Please try again later'
+                            this.snackbar = true
+                            this.usersLoading = false
+                            break                            
+                    }
+                })
+                .catch(() => {
+                    this.snackbarText = 'Something went wrong. Please try again later'
+                    this.snackbar = true
+                    this.serverSettingsLoading = false
+                })
+            } else {
+                fetch(`${MAILSYNC_SERVER}/user/remove?user_id=${user.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': getCookie('sessionid')
+                    }
+                })
+                .then(r => {
+                    if(!r.ok) {
+                        throw r
+                    }
+
+                    switch(r.status) {
+                        case 200:
+                            this.snackbarText = 'User removed'
+                            this.snackbar = true
+                            break
+                        case 429:
+                            this.snackbarText = 'Hold up, slow down a bit!'
+                            this.snackbar = true
+                            this.usersLoading = false
+                            break
+                        case 401:
+                            this.usersLoading = false
+                            this.isAdmin = false
+                            break
+                        default:
+                            this.snackbarText = 'Something went wrong. Please try again later'
+                            this.snackbar = true
+                            this.usersLoading = false
+                            break                            
+                    }
+                })
+                .catch(() => {
+                    this.snackbarText = 'Something went wrong. Please try again later'
+                    this.snackbar = true
+                    this.serverSettingsLoading = false
+                })
+            }
+        },
+        fetchUsers() {
+            fetch(`${MAILSYNC_SERVER}/user/list`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': getCookie('sessionid')
+                }
+            })
+            .then(r => {
+                if(!r.ok) {
+                    throw r
+                }
+
+                switch(r.status) {
+                    case 200:
+                        r.json().then(j => {
+                            interface UsersResponse {
+                                users:  User[]
+                            }
+
+                            this.users = (<UsersResponse> j).users
+                            this.usersLoading = false
+                        })
+                        break
+                    case 429:
+                        this.snackbarText = 'Hold up, slow down a bit!'
+                        this.snackbar = true
+                        this.usersLoading = false
+                        break
+                    case 401:
+                        this.usersLoading = false
+                        this.isAdmin = false
+                        break
+                    default:
+                        this.snackbarText = 'Something went wrong. Please try again later'
+                        this.snackbar = true
+                        this.usersLoading = false
+                        break
+                }
+            })
+            .catch(() => {
+                this.snackbarText = 'Something went wrong. Please try again later'
+                this.snackbar = true
+                this.serverSettingsLoading = false
+            })
+        },
+        fetchServerSettings() {
             fetch(`${MAILSYNC_SERVER}/settings`, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -183,35 +370,35 @@ export default Vue.extend({
                                 settings: Setting[]
                             }
 
-                            this.loading = false
+                            this.serverSettingsLoading = false
                             this.settings = (<SettingsResponse> j).settings
                         })
                         break
                     case 429:
                         this.snackbarText = 'Hold up, slow down a bit!'
                         this.snackbar = true
-                        this.loading = false
+                        this.serverSettingsLoading = false
                         break
                     case 401:
-                        this.loading = false
+                        this.serverSettingsLoading = false
                         this.isAdmin = false
                         break
                     default:
                         this.snackbarText = 'Something went wrong. Please try again later'
                         this.snackbar = true
-                        this.loading = false
+                        this.serverSettingsLoading = false
                         break
                 }
             })
             .catch(() => {
                 this.snackbarText = 'Something went wrong. Please try again later'
                 this.snackbar = true
-                this.loading = false
+                this.serverSettingsLoading = false
             })
         },
-        saveSettings() {
+        saveServerSettings() {
             if((this.$refs.form as any).validate()) {
-                this.loading = true
+                this.serverSettingsLoading = true
                 fetch(`${MAILSYNC_SERVER}/settings/update`, {
                     method: 'POST',
                     headers: {
@@ -229,23 +416,24 @@ export default Vue.extend({
 
                     switch(r.status) {
                         case 200:
-                            this.loading = false
+                            this.serverSettingsLoading = false
                             this.snackbar = true,
                             this.snackbarText = 'Settings saved'
                             break
                         default:
                             this.snackbarText = 'Something went wrong. Please try again later'
                             this.snackbar = true
-                            this.loading = false       
+                            this.serverSettingsLoading = false       
                     }
                 })
                 .catch(() => {
                     this.snackbarText = 'Something went wrong. Please try again later'
                     this.snackbar = true
-                    this.loading = false                
+                    this.serverSettingsLoading = false                
                 })
             }
         },
     }
 })
+
 </script>

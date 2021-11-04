@@ -9,7 +9,7 @@ import 'material-design-icons-iconfont/dist/material-design-icons.css'
 
 Vue.config.productionTip = false
 
-export const MAILSYNC_SERVER = "/api/v1"
+export const MAILSYNC_SERVER = process.env.NODE_ENV === 'production' ? "/api/v1" : "http://localhost:8080/api/v1"
 
 interface AppData {
 	user: 	IUser,
