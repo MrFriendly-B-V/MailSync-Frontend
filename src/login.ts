@@ -28,7 +28,7 @@ export async function logIn(): Promise<IUser> {
 
 	if(sessionId == '') {
 		let path = window.location.origin + '/' + window.location.pathname + '#/login'
-		window.location.href = `${LOGIN_SERVER}/oauth2/login?api_name=mailsync&return_uri=${btoa(path)}`
+		window.location.href = `${LOGIN_SERVER}/oauth2/login?api_name=mailsync&return_uri=${btoa(path)}&requested_scopes=https://www.googleapis.com/auth/gmail.readonly`
 	}
 
 	let r = await fetch(`${LOGIN_SERVER}/session/check/${sessionId}`, {
