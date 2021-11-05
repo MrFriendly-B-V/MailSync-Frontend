@@ -1,5 +1,6 @@
 <template>
     <v-container>
+        <!--
         <v-card v-if="this.ref == null" elevation="2" class="mx-auto mt-6" max-width="344" outlined>
             <v-card-title> Invalid request </v-card-title>
             <v-card-text> The way you opened this page is likely not valid. </v-card-text>
@@ -9,8 +10,9 @@
                 </div>
             </v-card-actions>
         </v-card>
+        -->
 
-        <v-card v-if="this.ref != null">
+        <v-card>
             <v-card-title> 
                 Emails 
 
@@ -136,21 +138,29 @@ export default Vue.extend({
         fetchData() {
             const { sortBy, sortDesc, page, itemsPerPage } = this.options
 
-            let query = `q=${this.$data.ref}`
+            let query = ''
+            if(this.$data.ref != null) {
+                query += `q=${this.$data.ref}`
+            }
+
             if(sortBy != null) {
-                query += `&sort_by=${sortBy}`
+                if(query.length != 0) query += '&' 
+                query += `sort_by=${sortBy}`
             }
 
             if(sortDesc != null) {
-                query += `&sort=${sortDesc ? 'desc' : 'asc'}`
+                if(query.length != 0) query += '&' 
+                query += `sort=${sortDesc ? 'desc' : 'asc'}`
             }
 
             if(page != null) {
-                query += `&page=${page}`
+                if(query.length != 0) query += '&' 
+                query += `page=${page}`
             }
 
             if(itemsPerPage != null) {
-                query += `&page_size=${itemsPerPage}`
+                if(query.length != 0) query += '&' 
+                query += `page_size=${itemsPerPage}`
             }
 
             fetch(`${MAILSYNC_SERVER}/mail/inbox?${query}`, {
